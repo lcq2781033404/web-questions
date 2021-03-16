@@ -57,7 +57,9 @@ DOM 渲染在 mounted 中就已经完成了。
 - 销毁完成的顺序是先子后父
 
 **加载渲染过程**: 父beforeCreate -> 父created -> 父beforeMount -> 子beforeCreate -> 子created -> 子beforeMount -> 子mounted -> 父mounted
+
 **组件更新过程**: 父beforeUpdate -> 子beforeUpdate -> 子updated -> 父updated
+
 **销毁过程**: 父beforeDestroy -> 子beforeDestroy -> 子destroyed -> 父destroyed
 
 ### 3.组件之间如何传值
