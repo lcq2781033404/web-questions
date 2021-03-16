@@ -1,5 +1,6 @@
 ### 1.js数据类型都有哪些
 基本数据类型：Undefined, Null, Boolean, Number, String, Symbol(es6)
+
 引用数据类型：Object, Array, Function
 
 **主要区别**
