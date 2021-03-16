@@ -8,6 +8,58 @@ ViewModel：负责监听Model中数据的改变并且控制视图的更新，处
 
 这种模式实现了Model和View的数据自动同步，因此开发者只需要专注对数据的维护操作即可，而不需要自己操作dom。
 ### 2.vue生命周期介绍一下
+#### 基本概念
+vue实例从创建到销毁的过程
+
+#### vue生命周期的作用
+vue生命周期中的多个事件钩子，可以让我们在控制整个Vue实例的过程时更容易形成较为清晰的逻辑。
+
+#### vue生命周期有几个阶段
+总共分为8个阶段：创建前/后(beforeCreate, created), 载入前/后(beforeMount, mounted), 更新前/后(beforeUpdate, updated), 销毁前/销毁后(beforeDestroy, destroyed)
+
+**beforeCreate**是new Vue()之后触发的第一个钩子，在当前阶段data、methods、computed以及watch上的数据和方法**都不能**被访问。
+
+**created**在实例创建完成后发生，当前阶段已经完成了数据观测，也就是可以使用数据，更改数据，在这里更改数据**不会触发updated**函数。可以做一些初始数据的获取，在当前阶段无法与Dom进行交互，如果非要想，可以通过vm.$nextTick来访问Dom。
+
+**beforeMount**发生在挂载之前，在这之前template模板已导入渲染函数编译。而当前阶段虚拟Dom已经创建完成，即将开始渲染。在此时也可以对数据进行更改，**不会触发updated**。
+
+**mounted**在挂载完成后发生，在当前阶段，真实的Dom挂载完毕，数据完成双向绑定，可以访问到Dom节点，使用$refs属性对Dom进行操作。
+
+**beforeUpdate**发生在更新之前，也就是响应式数据发生更新，虚拟dom重新渲染之前被触发，你可以在当前阶段进行更改数据，不会造成重渲染。
+
+**updated**发生在更新完成之后，当前阶段组件Dom已完成更新。要注意的是**避免在此期间更改数据**，因为这可能会导致无限循环的更新。
+
+**beforeDestroy**发生在实例销毁之前，在当前阶段实例完全可以被使用，我们可以在这时进行善后收尾工作，比如清除计时器，销毁父组件对子组件的重复监听。beforeDestroy(){Bus.$off("saveTheme")}
+
+**destroyed**发生在实例销毁之后，这个时候只剩下了dom空壳。组件已被拆解，数据绑定被卸除，监听被移出，子实例也统统被销毁。
+
+#### 第一次页面加载会触发哪几个钩子
+第一次页面加载时会触发 beforeCreate, created, beforeMount, mounted 这几个钩子
+
+#### DOM 渲染在哪个周期中就已经完成
+DOM 渲染在 mounted 中就已经完成了。
+
+#### 简单描述每个周期具体适合哪些场景
+**beforecreate**: 可以在这加个loading事件，在加载实例时触发 
+
+**created**: 初始化完成时的事件写在这里，如在这结束loading事件，异步请求也适宜在这里调用 
+
+**mounted**: 挂载元素，获取到DOM节点 
+
+**updated**: 如果对数据统一处理，在这里写上相应函数 
+
+**beforeDestroy**: 可以清除定时器，取消bus监听
+
+#### 生命周期的调用顺序
+- 组件的调用顺序都是先父后子
+- 渲染完成的顺序是先子后父
+- 组件的销毁操作是先父后子
+- 销毁完成的顺序是先子后父
+
+**加载渲染过程**: 父beforeCreate -> 父created -> 父beforeMount -> 子beforeCreate -> 子created -> 子beforeMount -> 子mounted -> 父mounted
+**组件更新过程**: 父beforeUpdate -> 子beforeUpdate -> 子updated -> 父updated
+**销毁过程**: 父beforeDestroy -> 子beforeDestroy -> 子destroyed -> 父destroyed
+
 ### 3.组件之间如何传值
 ### 4.vuex介绍一下
 是什么：vue框架中状态管理:有五种，分别是 State、 Getter、Mutation 、Action、 Module
