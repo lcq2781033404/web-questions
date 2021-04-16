@@ -29,7 +29,7 @@ typeof检查除上述外的其他所有的类型(Null, Object, Array等)，都�
 #### (2)instanceof
 语法：A instanceof B(返回boolean值)
 
-instanceof运算符用于判断的是B.prototype是否存在A的原型链之中
+instanceof运算符用于判断的是B.prototype是否存在A的原型链之中(即：A是不是B的实例？)
 ```javascript
 // 定义构造函数
 function C(){} 
