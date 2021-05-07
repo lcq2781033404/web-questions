@@ -200,11 +200,139 @@ function throttle(fn, delay){
 ### 8.回流和重绘
 #### （1）回流
 当我们对 DOM 的修改引发了 DOM 几何尺寸的变化（比如修改元素的宽、高或隐藏元素等）时，浏览器需要重新计算元素的几何属性（其他元素的几何属性和位置也会因此受到影响），然后再将计算的结果绘制出来。这个过程就是回流（也叫重排）。
+
+当你要用到像这样的属性：offsetTop、offsetLeft、 offsetWidth、offsetHeight、scrollTop、scrollLeft、scrollWidth、scrollHeight、clientTop、clientLeft、clientWidth、clientHeight 时，你就要注意了！
+
+“像这样”的属性，到底是像什么样？——这些值有一个共性，就是需要通过即时计算得到。因此浏览器为了获取这些值，也会进行回流。
+
+除此之外，当我们调用了 getComputedStyle 方法，或者 IE 里的 currentStyle 时，也会触发回流。原理是一样的，都为求一个“即时性”和“准确性”。
 #### （2）重绘
 当我们对 DOM 的修改导致了样式的变化、却并未影响其几何属性（比如修改了颜色或背景色）时，浏览器不需重新计算元素的几何属性、直接为该元素绘制新的样式（跳过了上图所示的回流环节）。这个过程叫做重绘。
 
 #### （3）对比
 重绘不一定导致回流，回流一定会导致重绘
+
+#### （4）如何规避回流和重绘
+- 将引起回流的操作或值用变量存起来，避免频繁改动
+有时我们想要通过多次计算得到一个元素的布局位置，我们可能会这样做：
+```vue
+<template>
+    <div ref="el" id="el"></div>
+</template>
+<script>
+export default {
+    mounted() {
+        // 获取el元素
+        // const el = document.getElementById('el')
+        // vue中使用ref代替DOM操作获取元素
+        const el = this.$refs.el
+        // 这里循环判定比较简单，实际中或许会拓展出比较复杂的判定需求
+        for(let i=0;i<10;i++) {
+          el.style.top  = el.offsetTop  + 10 + "px";
+          el.style.left = el.offsetLeft + 10 + "px";
+        }
+    }
+}
+</script>
+```
+这样做，每次循环都需要获取多次“敏感属性”，是比较糟糕的。我们可以将其以 JS 变量的形式缓存起来，待计算完毕再提交给浏览器发出重计算请求：
+```vue
+<template>
+    <div ref="el" id="el"></div>
+</template>
+<script>
+export default {
+    mounted() {
+        // 缓存offsetLeft与offsetTop的值
+        const el = this.$refs.el
+        let offLeft = el.offsetLeft
+        let offTop = el.offsetTop
+
+        // 在JS层面进行计算
+        for(let i=0;i<10;i++) {
+          offLeft += 10
+          offTop  += 10
+        }
+
+        // 一次性将计算结果应用到DOM上
+        el.style.left = offLeft + "px"
+        el.style.top = offTop  + "px"
+    }
+}
+</script>
+```
+- 避免逐条改变样式，使用类名去合并样式
+比如我们可以把这段单纯的代码：
+```javascript
+const container = document.getElementById('container')
+container.style.width = '100px'
+container.style.height = '200px'
+container.style.border = '10px solid red'
+container.style.color = 'red'
+```
+优化成一个有 class 加持的样子：
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+    .basic_style {
+      width: 100px;
+      height: 200px;
+      border: 10px solid red;
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <script>
+  const container = document.getElementById('container')
+  container.classList.add('basic_style')
+  </script>
+</body>
+</html>
+```
+- 将 DOM “离线”
+我们上文所说的回流和重绘，都是在“该元素位于页面上”的前提下会发生的。一旦我们给元素设置 display: none，将其从页面上“拿掉”，那么我们的后续操作，将无法触发回流与重绘——这个将元素“拿掉”的操作，就叫做 DOM 离线化。
+
+仍以我们上文的代码片段为例：
+```javascript
+const container = document.getElementById('container')
+container.style.width = '100px'
+container.style.height = '200px'
+container.style.border = '10px solid red'
+container.style.color = 'red'
+...（省略了许多类似的后续操作）
+```
+离线化后是这样的：
+```javascript
+let container = document.getElementById('container')
+container.style.display = 'none'
+container.style.width = '100px'
+container.style.height = '200px'
+container.style.border = '10px solid red'
+container.style.color = 'red'
+...（省略了许多类似的后续操作）
+container.style.display = 'block'
+```
+- Flush 队列：浏览器并没有那么简单
+其实现代浏览器是很聪明的。浏览器自己也清楚，如果每次 DOM 操作都即时地反馈一次回流或重绘，那么性能上来说是扛不住的。于是它自己缓存了一个 flush 队列，把我们触发的回流与重绘任务都塞进去，待到队列里的任务多起来、或者达到了一定的时间间隔，或者“不得已”的时候，再将这些任务一口气出队。因此我们看刚刚的逐条改变样式代码，就算我们进行了 4 次 DOM 更改，也只触发了一次 回流 和一次 重绘。
+```javascript
+// 我们即使这么写代码，浏览器的flush队列依旧会帮我们只执行一次回流和一次重绘
+let container = document.getElementById('container')
+container.style.width = '100px'
+container.style.height = '200px'
+container.style.border = '10px solid red'
+container.style.color = 'red'
+```
+那是不是意味着我们就可以为所欲为，完全交给浏览器帮助优化了呢？当然是不可以的，这里尤其小心这个“不得已”的时候。前面我们在介绍回流的“导火索”的时候，提到过有一类属性很特别，它们有很强的“即时性”。当我们访问这些属性时，浏览器会为了获得此时此刻的、最准确的属性值，而提前将 flush 队列的任务出队——这就是所谓的“不得已”时刻。
+
+所以我们还是要养成良好的编码习惯，不能过多依赖于浏览器的优化帮忙，上面的代码即便浏览器可以帮忙处理，我们也最好不要那么写。
 
 ### 9.关于性能优化的一些思路
 #### （1）减少DOM操作
