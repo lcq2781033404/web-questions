@@ -66,6 +66,7 @@ isPrototypeOf判断的是A对象是否存在于B对象的原型链之中
 
 ### 3.请描述一下 cookies sessionStorage和localstorage区别
 相同点：都存储在客户端
+
 不同点：
 #### （1）存储大小
 - cookie数据大小不能超过4k。
