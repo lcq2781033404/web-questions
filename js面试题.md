@@ -87,7 +87,7 @@ isPrototypeOf判断的是A对象是否存在于B对象的原型链之中
 
 · sessionStorage和localStorage不会自动把数据发给服务器，仅在本地保存。
 
-### 3.call和apply简单介绍一下
+### 4.call和apply简单介绍一下
 #### apply：
 
 接受两个参数，第一个参数是要绑定给this的值，第二个参数是一个参数数组。当第一个参数为null、undefined的时候，默认指向window。
@@ -100,6 +100,104 @@ isPrototypeOf判断的是A对象是否存在于B对象的原型链之中
 
 事实上apply 和 call 的用法几乎相同。 唯一的差别在于：当函数需要传递多个变量时, apply 可以接受一个数组作为参数输入, call 则是接受一系列的单独变量。
 
-### 3.js异步操作介绍一下
-### 4.es6新特性
+### 5.js异步操作介绍一下
+### 6.es6新特性
+### 7.防抖和节流
+#### （1）防抖(debounce)
+对于短时间内连续触发的事件，在某个时间期限内，只执行最后一次触发的事件。
 
+比如监听滚动条滚动事件，然后打印滚动的距离，如果不加防抖的话，打印的会特别频繁，但是在实际应用中，我们并不需要这么频繁的触发事件，此时可以为滚动事件加一个防抖函数，只在停止滚动xx（xx是设置的延迟时间）毫秒后，触发一次滚动事件，代码如下：
+```javascript
+/*
+* fn [function] 需要防抖的函数
+* delay [number] 毫秒，防抖期限值
+*/
+function debounce(fn, delay) {
+    let timer = null // 借助闭包
+    return function() {
+        clearTimeout(timer) 
+        timer = setTimeout(fn, delay)
+    }
+}
+
+function showTop  () {
+    var scrollTop = document.body.scrollTop || document.documentElement.scrollTop;
+　　console.log('滚动条位置：' + scrollTop);
+}
+window.onscroll = debounce(showTop, 1000) // 在停止滚动1秒以后，会打印出滚动条位置
+```
+上面是一个最简单的示例代码，实际使用过程中还需要考虑到参数的传递问题，以及this指向问题，下面是实际使用过程中的代码：
+```javascript
+// 防抖方法
+function debounce(fn, delay) {
+    let timer = null
+    return function () {
+        let that = this
+        let args = arguments
+        clearTimeout(timer) // 清除重新计时
+        timer = setTimeout(() => {
+            fn.apply(that, args)
+        }, delay || 500)
+    }
+}
+// 声明事件处理函数时就可以加上事件的参数，因为debounce方法里面已经将参数携带了过来
+function showTop  (event) {
+    console.log(event) // event是滚动条滚动的事件参数，可以根据需要使用
+    var scrollTop = document.body.scrollTop || document.documentElement.scrollTop;
+　　console.log('滚动条位置：' + scrollTop);
+}
+```
+#### （2）节流(throttle)
+如果短时间内大量触发同一事件，那么在函数执行一次之后，在一定时间段内重复触发该函数会失效，过了这段时间之后该函数会重新生效（类似技能冷却时间）
+
+比如点击按钮提交表单，为了防止用户连续点击触发多次提交请求，我们需要节流方法，首先设置一个时间段，在这个时间段内用户只有第一次点击时发起请求，后面的连续点击不会被处理
+```javascript
+// 这里只写节流方法，调用和防抖是一样的，就不重复写了
+function throttle(fn, delay){
+    let timer = null
+    return function() {
+       if(timer){
+           //休息时间 暂不接客
+           return false 
+       }
+       // 工作时间，执行函数并且在间隔期内把状态位设为无效
+       fn()
+       timer = setTimeout(() => {
+           clearTimeout(timer)
+           timer = null
+       }, delay)
+    }
+}
+/* 请注意，节流函数并不止上面这种实现方案,
+   例如可以完全不借助setTimeout，可以把状态位换成时间戳，然后利用时间戳差值是否大于指定间隔时间来做判定。
+   也可以额外创建一个开关变量，在触发函数后将其关闭，关闭期间不处理，然后设置定时器，定时器到期后再将开关打开，原理都是一样的
+ */
+```
+同样的，下面是处理了参数传递的代码
+```javascript
+function throttle(fn, delay){
+    let timer = null
+    return function() {
+       if(timer){
+           //休息时间 暂不接客
+           return false 
+       }
+       // 工作时间，执行函数并且在间隔期内把状态位设为无效
+       let that = this
+       let args = arguments
+       fn.apply(that, args)
+       timer = setTimeout(() => {
+           clearTimeout(timer)
+           timer = null
+       }, delay || 500)
+    }
+}
+```
+#### （3）实现原理
+从上面的代码可以看出，无论是防抖还是节流，都应用了闭包的特性（即一个函数A return了另一个函数B，则在函数B中可以使用函数A中的变量），在事件注册的时候，防抖和节流的方法只执行了一次，每次事件触发执行的是防抖节流方法里面return的方法
+#### （4）应用场景
+防抖和节流多使用于可能会频繁触发js事件或者请求的地方，为了提升浏览器的性能，常见的使用场景比如：
+
+- 页面resize事件，常见于需要做页面适配的时候。需要根据最终呈现的页面情况进行dom渲染（这种情形一般是使用**防抖**，因为只需要判断最后一次的变化情况）
+- 搜索框input事件，例如要支持输入实时搜索可以使用**节流方案**（间隔一段时间就必须查询相关内容），或者实现输入间隔大于某个值（如500ms），就当做用户输入完成，然后开始搜索（**防抖方案**），具体使用哪种方案要看业务需求。
+- 表单提交，防止用户频繁点击，多次发起请求，这种情况一般使用**节流**
