@@ -107,4 +107,29 @@ Module其实只是解决了当state中很复杂臃肿的时候，module可以将
 
 （4）关闭sourceMap
 
+### 6.vue-router原理
+#### （1）前端路由和后端路由
+后端路由：输入url -> 请求发送到服务器 -> 服务器解析请求的路径 -> 拿取对应的页面 -> 返回给浏览器
+
+缺点：对服务器造成大的压力
+
+前端路由：输入url -> js解析地址 -> 找到对应的地址页面 -> 执行对应页面的js -> 看到页面
+
+#### （2）vue-router工作原理
+url改变 -> 触发监听事件 -> 改变vue-router里面的current变量 -> vue监视current的监视者 -> 获取到新的组件 -> Render新组件
+
+#### （3）vue-router路由的两种模式
+
+##### ①hash模式
+#后面的就是hash的内容
+
+可以通过location.hash拿到
+
+可以通过onhashchange监听hash的改变
+##### ②history模式
+history即正常路径
+
+可以通过location.pathname拿到
+
+可以用onpopstate监听history的变化
 
