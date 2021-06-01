@@ -133,3 +133,28 @@ history即正常路径
 
 可以用onpopstate监听history的变化
 
+### 7.vue.use干了什么
+这是vue.use的源码
+```javascript
+function initUse (Vue) {
+    Vue.use = function (plugin) {
+      var installedPlugins = (this._installedPlugins || (this._installedPlugins = []));
+      if (installedPlugins.indexOf(plugin) > -1) {
+        return this
+      }
+
+      // additional parameters
+      var args = toArray(arguments, 1);
+      // 这里的this是vue的构造函数，使用unshift将其放到第一个，这样插件的install方法里面第一个参数就是vue的构造函数
+      args.unshift(this);
+      if (typeof plugin.install === 'function') {
+        plugin.install.apply(plugin, args);
+      } else if (typeof plugin === 'function') {
+        plugin.apply(null, args);
+      }
+      installedPlugins.push(plugin);
+      return this
+    };
+ }
+```
+从源码可以看出，首先vue.use不会重复注册插件，使用vue.use后，后优先找到插件中的install方法并执行，如果没有找到install方法，则会执行插件本身
