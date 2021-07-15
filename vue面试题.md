@@ -7,7 +7,15 @@ ViewModel：负责监听Model中数据的改变并且控制视图的更新，处
        Model和View并无直接关联，而是通过ViewModel来进行联系的，Model和ViewModel之间有着双向数据绑定的联系。因此当Model中的数据改变时会触发View层的刷新，View中由于用户交互操作而改变的数据也会在Model中同步。
 
 这种模式实现了Model和View的数据自动同步，因此开发者只需要专注对数据的维护操作即可，而不需要自己操作dom。
-### 2.vue生命周期介绍一下
+
+### 2.vue响应式原理介绍一下
+Vue 采用观察者模式，通过Object.defineProperty将对象的key转换成getter/setter来追踪变化，就是所谓的**数据劫持**，Vue中需要收集视图依赖了哪些数据，在getter中收集依赖，在setter中触发依赖。先收集依赖，即把用到该数据的地方收集起来，然后等属性发生变化时，把之前收集好的依赖循环触发一遍，这样就完成了数据更新，视图随之发生变化的效果，但是defineProperty的getter/setter只能追踪一个数据是否被修改，**无法追踪新增属性和删除属性**。对于要新增的属性，Vue给出了Vue.set的方法（Vue.set方法调用了defineReactive方法将添加的属性变为响应式的）响应式的添加属性。
+
+所以Vue 3.0的时候，Vue是通过Proxy代理的方式监测属性变化的，解决了defineProperty无法追踪新增属性和删除属性的问题，而且Proxy 的代理是**针对整个对象的，而不是对象的某个属性**，因此不同于 Object.defineProperty 的必须遍历对象每个属性。
+
+
+
+### 3.vue生命周期介绍一下
 #### 基本概念
 vue实例从创建到销毁的过程
 
@@ -62,8 +70,8 @@ DOM 渲染在 mounted 中就已经完成了。
 
 **销毁过程**: 父beforeDestroy -> 子beforeDestroy -> 子destroyed -> 父destroyed
 
-### 3.组件之间如何传值
-### 4.vuex介绍一下
+### 4.组件之间如何传值
+### 5.vuex介绍一下
 是什么：vue框架中状态管理:有五种，分别是 State、 Getter、Mutation 、Action、 Module
 
 使用：新建一个目录store，
@@ -96,7 +104,7 @@ vuex的module特性
 Module其实只是解决了当state中很复杂臃肿的时候，module可以将store分割成模块，
 每个模块中拥有自己的state、mutation、action和getter
 ```
-### 5.如何解决首屏加载速度慢的问题
+### 6.如何解决首屏加载速度慢的问题
 思路： 安装 webpack-bundle-analyzer 插件，分析项目各模块大小，针对大模块进行压缩
 
 （1）路由懒加载
@@ -107,7 +115,7 @@ Module其实只是解决了当state中很复杂臃肿的时候，module可以将
 
 （4）关闭sourceMap
 
-### 6.vue-router原理
+### 7.vue-router原理
 #### （1）前端路由和后端路由
 后端路由：输入url -> 请求发送到服务器 -> 服务器解析请求的路径 -> 拿取对应的页面 -> 返回给浏览器
 
@@ -133,7 +141,7 @@ history即正常路径
 
 可以用onpopstate监听history的变化
 
-### 7.vue.use干了什么
+### 8.vue.use干了什么
 这是vue.use的源码
 ```javascript
 function initUse (Vue) {
