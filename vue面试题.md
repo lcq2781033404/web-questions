@@ -177,6 +177,9 @@ function updateChildren (parentElm, oldCh, newCh, insertedVnodeQueue, removeOnly
     - f1. oldS > oldE 表示 oldCh 先遍历完，那么就将多余的 vCh 根据index添加到dom中去 
     - f2. S > E 表示vCh先遍历完，那么就在真实dom中将区间为 [oldS, oldE] 的多余节点删掉
 
+#### ④ 所以这里回归到可能会问的一个问题：为什么v-for需要加key？
+v-for中的key来给每个节点做一个唯一的标识，diff算法就可以正确的识别此节点，找到正确的位置区插入新的节点；key的主要作用是为了高效的更新虚拟dom
+
 ### 3.vue生命周期介绍一下
 #### 基本概念
 vue实例从创建到销毁的过程
