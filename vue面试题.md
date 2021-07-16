@@ -13,7 +13,169 @@ Vue 采用观察者模式，通过Object.defineProperty将对象的key转换成g
 
 所以Vue 3.0的时候，Vue是通过Proxy代理的方式监测属性变化的，解决了defineProperty无法追踪新增属性和删除属性的问题，而且Proxy 的代理是**针对整个对象的，而不是对象的某个属性**，因此不同于 Object.defineProperty 的必须遍历对象每个属性。
 
+### 3.虚拟DOM和Diff算法介绍一下
+#### （1）虚拟DOM含义
+虚拟DOM用js对象模拟真实的DOM节点，该对象描述了真实DOM的结构和属性
 
+#### （2）虚拟DOM的作用
+减少了对DOM的操作。页面中的数据和状态变化，都通过Vnode对比（Diff算法），只需要在比对完之后更新DOM，不需要频繁操作，减少了页面回流重绘的次数，提高了页面性能；
+
+#### （3）Diff算法
+当数据变化时，vue如何来更新视图的？其实很简单，一开始会根据真实DOM生成虚拟DOM，当虚拟DOM某个节点的数据改变后会生成一个新的Vnode，然后VNode和oldVnode对比，把不同的地方修改在真实DOM上，最后再使得oldVnode的值为Vnode。
+
+diff过程就是调用patch函数，比较新老节点，一边比较一边给真实DOM打补丁(patch)；
+
+#### （4）Diff算法的比较过程（oldVnode和Vnode的递归比较过程）
+首先需要明白的是：Diff算法只会比较**同层节点**，如果同层都不一样就没有继续比下去的必要了，直接用新节点替换旧节点
+
+##### ① patch
+```javascript
+// 代码只保留核心部分
+function patch (oldVnode, vnode) {
+ // some code
+ if (sameVnode(oldVnode, vnode)) {
+  patchVnode(oldVnode, vnode)
+ } else {
+  const oEl = oldVnode.el // 当前oldVnode对应的真实元素节点
+  let parentEle = api.parentNode(oEl) // 父元素
+  createEle(vnode) // 根据Vnode生成新元素
+  if (parentEle !== null) {
+   api.insertBefore(parentEle, vnode.el, api.nextSibling(oEl)) // 将新元素添加进父元素
+   api.removeChild(parentEle, oldVnode.el) // 移除以前的旧元素节点
+   oldVnode = null
+  }
+ }
+ // some code 
+ return vnode
+}
+
+function sameVnode (a, b) {
+ return (
+ a.key === b.key && // key值
+ a.tag === b.tag && // 标签名
+ a.isComment === b.isComment && // 是否为注释节点
+ // 是否都定义了data，data包含一些具体信息，例如onclick , style
+ isDef(a.data) === isDef(b.data) && 
+ sameInputType(a, b) // 当标签是<input>的时候，type必须相同
+ )
+}
+```
+首先会进入patch函数，如果判断新旧节点是相同的节点（其实就是判断是不是相同的类型，比如都是div，如果连这点都无法满足就没有继续比下去的必要了），就会进入到下一步patchVnode函数；如果不是相同节点，直接用Vnode替换oldVnode
+
+##### ② patchVnode
+```javascript
+// 代码只保留核心部分
+patchVnode (oldVnode, vnode) {
+ const el = vnode.el = oldVnode.el
+ let i, oldCh = oldVnode.children, ch = vnode.children
+ if (oldVnode === vnode) return
+ if (oldVnode.text !== null && vnode.text !== null && oldVnode.text !== vnode.text) {
+  api.setTextContent(el, vnode.text)
+ }else {
+  updateEle(el, vnode, oldVnode)
+  if (oldCh && ch && oldCh !== ch) {
+   updateChildren(el, oldCh, ch)
+  }else if (ch){
+   createEle(vnode) //create el's children dom
+  }else if (oldCh){
+   api.removeChildren(el)
+  }
+ }
+}
+```
+这个函数做了以下事情：
+
+a. 找到对应的真实dom，称为 el
+b. 判断 Vnode 和 oldVnode 是否指向同一个对象，如果是，那么直接 return ，否则继续往下判断
+c. 如果他们都有文本节点并且不相等，那么将 el 的文本节点设置为 Vnode 的文本节点。
+d. 如果两者都有子节点，则执行 updateChildren 函数比较子节点，**这一步是整个Diff比较的核心部分，放到下一点着重介绍**
+e. 如果 Vnode 有子节点而 oldVnode 没有有，则将 Vnode 的子节点真实化之后添加到 el 
+f. 如果 oldVnode 有子节点而 Vnode 没有，则删除 el 的子节点
+
+##### ③ updateChildren
+```javascript
+function updateChildren (parentElm, oldCh, newCh, insertedVnodeQueue, removeOnly) {
+    let oldStartIdx = 0
+    let newStartIdx = 0
+    let oldEndIdx = oldCh.length - 1
+    let oldStartVnode = oldCh[0]
+    let oldEndVnode = oldCh[oldEndIdx]
+    let newEndIdx = newCh.length - 1
+    let newStartVnode = newCh[0]
+    let newEndVnode = newCh[newEndIdx]
+    let oldKeyToIdx, idxInOld, vnodeToMove, refElm
+
+    // removeOnly is a special flag used only by <transition-group>
+    // to ensure removed elements stay in correct relative positions
+    // during leaving transitions
+    const canMove = !removeOnly
+
+    if (process.env.NODE_ENV !== 'production') {
+      checkDuplicateKeys(newCh)
+    }
+
+    while (oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx) {
+      if (isUndef(oldStartVnode)) {
+        oldStartVnode = oldCh[++oldStartIdx] // Vnode has been moved left
+      } else if (isUndef(oldEndVnode)) {
+        oldEndVnode = oldCh[--oldEndIdx]
+      } else if (sameVnode(oldStartVnode, newStartVnode)) { // 新前-旧前
+        patchVnode(oldStartVnode, newStartVnode, insertedVnodeQueue, newCh, newStartIdx)
+        oldStartVnode = oldCh[++oldStartIdx]
+        newStartVnode = newCh[++newStartIdx]
+      } else if (sameVnode(oldEndVnode, newEndVnode)) { // 新后-旧后
+        patchVnode(oldEndVnode, newEndVnode, insertedVnodeQueue, newCh, newEndIdx)
+        oldEndVnode = oldCh[--oldEndIdx]
+        newEndVnode = newCh[--newEndIdx]
+      } else if (sameVnode(oldStartVnode, newEndVnode)) { // Vnode moved right // 新后-旧前
+        patchVnode(oldStartVnode, newEndVnode, insertedVnodeQueue, newCh, newEndIdx)
+        canMove && nodeOps.insertBefore(parentElm, oldStartVnode.elm, nodeOps.nextSibling(oldEndVnode.elm))
+        oldStartVnode = oldCh[++oldStartIdx]
+        newEndVnode = newCh[--newEndIdx]
+      } else if (sameVnode(oldEndVnode, newStartVnode)) { // Vnode moved left // 新前-旧后
+        patchVnode(oldEndVnode, newStartVnode, insertedVnodeQueue, newCh, newStartIdx)
+        canMove && nodeOps.insertBefore(parentElm, oldEndVnode.elm, oldStartVnode.elm)
+        oldEndVnode = oldCh[--oldEndIdx]
+        newStartVnode = newCh[++newStartIdx]
+      } else {
+        if (isUndef(oldKeyToIdx)) oldKeyToIdx = createKeyToOldIdx(oldCh, oldStartIdx, oldEndIdx)
+        idxInOld = isDef(newStartVnode.key)
+          ? oldKeyToIdx[newStartVnode.key]
+          : findIdxInOld(newStartVnode, oldCh, oldStartIdx, oldEndIdx)
+        if (isUndef(idxInOld)) { // New element
+          createElm(newStartVnode, insertedVnodeQueue, parentElm, oldStartVnode.elm, false, newCh, newStartIdx)
+        } else {
+          vnodeToMove = oldCh[idxInOld]
+          if (sameVnode(vnodeToMove, newStartVnode)) {
+            patchVnode(vnodeToMove, newStartVnode, insertedVnodeQueue, newCh, newStartIdx)
+            oldCh[idxInOld] = undefined
+            canMove && nodeOps.insertBefore(parentElm, vnodeToMove.elm, oldStartVnode.elm)
+          } else {
+            // same key but different element. treat as new element
+            createElm(newStartVnode, insertedVnodeQueue, parentElm, oldStartVnode.elm, false, newCh, newStartIdx)
+          }
+        }
+        newStartVnode = newCh[++newStartIdx]
+      }
+    }
+    if (oldStartIdx > oldEndIdx) {
+      refElm = isUndef(newCh[newEndIdx + 1]) ? null : newCh[newEndIdx + 1].elm
+      addVnodes(parentElm, refElm, newCh, newStartIdx, newEndIdx, insertedVnodeQueue)
+    } else if (newStartIdx > newEndIdx) {
+      removeVnodes(parentElm, oldCh, oldStartIdx, oldEndIdx)
+    }
+  }
+```
+这里是整个Diff算法最核心的部分，进到了这个函数，就说明Vnode和oldVnode都有子节点，这个函数就是对比两者子节点并更新DOM的。先说一下这个函数做了什么：
+
+a. 将 Vnode 的子节点 Vch 和 oldVnode 的子节点 oldCh 提取出来
+b. oldCh 和 vCh 各有两个头尾的变量 StartIdx 和 EndIdx ，它们的2个变量相互比较，一共有4种比较方式，这四种比较方式的先后顺序是：新前旧前、新后旧后、新后旧前、新前旧后，只要有一个匹配上就不会再继续往下匹配了，而且当匹配成功之后，会递归调用patchVnode，并且匹配到的头尾索引会往中间移动（比如新前旧前匹配到了：startIdx++, oldStartIdx++；比如新后旧前匹配到了：endIdx--, oldStartIdx++）。
+c. 不仅如此，如果是**新后旧前**匹配上了，那么**真实dom中旧前对应的节点会移到新后对应的索引上，同时匹配到的索引依旧会向中间移动**
+d. 同理，如果是**新前旧后**匹配上了，那么**真实dom中旧后对应的节点会移到新前对应的索引上，同时匹配到的索引依旧会向中间移动**
+e. 如果四种匹配没有一对是成功的，那么遍历 oldChild ， **新前节点** 挨个和他们匹配，匹配成功就在真实dom中将成功的节点移到最前面，如果依旧没有成功的，那么将 新前 对应的节点 插入到dom中对应的 旧前 位置， 旧前 和 新前 指针向中间移动。
+f. 这个匹配过程的结束有两个条件：
+f1. oldS > oldE 表示 oldCh 先遍历完，那么就将多余的 vCh 根据index添加到dom中去 
+f2. S > E 表示vCh先遍历完，那么就在真实dom中将区间为 [oldS, oldE] 的多余节点删掉
 
 ### 3.vue生命周期介绍一下
 #### 基本概念
