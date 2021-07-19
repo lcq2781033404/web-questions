@@ -147,6 +147,36 @@ constructor属性的含义就是**指向该对象的构造函数**，所有函�
 
 ### 9.js异步操作介绍一下
 
+#### （1）promise
+通常通过promise实现，promise有三种状态，pending（等待中）、resolve（执行成功）、reject（执行失败），在执行promise的时候，状态总会从pending到resolve或者reject，可以用then接收成功的回调，catch接收失败的回调，**另外：如果不想写catch也可以只用then实现接收失败回调，因为then回调有两个参数，第一个参数代表成功的回调，第二个参数代表失败的回调**
+
+**Promise.all方法**
+
+Promise.all方法接收一个数组作为参数，数组里面的每一项都是一个promise对象，这个方法最后返回一个promise对象，表示参数promise对象都被处理完之后的结果。
+```javascript
+var p = Promise.all([p1,p2,p3]);
+```
+上面的例子，p的状态由p1、p2、p3决定，分成两种情况。
+
+- 只有p1、p2、p3的状态都变成resolve，p的状态才会变成resolve，此时p1、p2、p3的返回值组成一个数组，传递给p的回调函数。
+- 只要p1、p2、p3之中有一个被rejected，p的状态就变成rejected，此时第一个被reject的实例的返回值，会传递给p的回调函数。
+
+**Promise.race方法**
+
+Promise.race方法同样是将多个Promise实例，包装成一个新的Promise实例。
+```javascript
+var p = Promise.race([p1,p2,p3]);
+```
+上面代码中，只要p1、p2、p3之中**有一个实例率先改变状态，p的状态就跟着改变**。那个率先改变的Promise实例的返回值，就传递给p的返回值。
+
+如果Promise.all方法和Promise.race方法的参数，不是Promise实例，就会先调用Promise.resolve方法，将参数转为Promise实例，再进一步处理。
+
+#### （2）async、await
+使用es7的 async和await也可以实现异步，而且可以做到**以同步写代码的方式实现异步功能，代码书写更加简洁**，async和await主要是解决了promise的then链过多问题，如果promise没有那么多then链，用promise也可以
+
+#### （3）手写promise
+
+
 ### 10.es6新特性
 #### （1）变量声明const 和 let
 作用：
