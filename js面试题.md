@@ -175,7 +175,9 @@ var p = Promise.race([p1,p2,p3]);
 使用es7的 async和await也可以实现异步，而且可以做到**以同步写代码的方式实现异步功能，代码书写更加简洁**，async和await主要是解决了promise的then链过多问题，如果promise没有那么多then链，用promise也可以
 
 #### （3）手写promise
+https://blog.csdn.net/William_bb/article/details/103169558?utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromMachineLearnPai2%7Edefault-3.control&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromMachineLearnPai2%7Edefault-3.control
 
+上面这个文章讲的比较透彻
 
 ### 10.es6新特性
 #### （1）变量声明const 和 let
