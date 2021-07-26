@@ -195,7 +195,176 @@ https://blog.csdn.net/William_bb/article/details/103169558?utm_medium=distribute
 
 上面这个文章讲的比较透彻
 
-### 10.es6新特性
+### 10.JS事件循环、任务队列、宏任务、微任务？
+#### （1）同步与异步简介
+我们知道，Javascript语言的执行环境是**单线程（single thread）**的。
+
+所谓"单线程"，就是指一次只能完成一件任务。如果有多个任务，就必须排队，前面一个任务完成，再执行后面一个任务，以此类推。
+
+这种模式的好处是实现起来比较简单，执行环境相对单纯；坏处是只要有一个任务耗时很长，后面的任务都必须排队等着，会拖延整个程序的执行。常见的浏览器无响应（假死），往往就是因为某一段Javascript代码长时间运行（比如死循环），导致整个页面卡在这个地方，其他任务无法执行。
+
+为了解决这个问题，Javascript语言将任务的执行模式分成两种：**同步（Synchronous）**和**异步（Asynchronous）**。
+
+**同步模式**就是后一个任务等待前一个任务结束，然后再执行，程序的执行顺序与任务的排列顺序是一致的、同步的；
+
+**异步模式**则完全不同，每一个任务有一个或多个回调函数（callback），前一个任务结束后，不是执行队列上的后一个任务，而是执行回调函数；后一个任务则是不等前一个任务的回调函数的执行而执行，所以程序的执行顺序与任务的排列顺序是不一致的、异步的。
+
+#### （2）任务队列
+异步操作会将相关回调添加到任务队列中。而不同的异步操作添加到任务队列的时机也不同，如onclick, setTimeout,ajax 处理的方式都不同，这些任务就构成了任务队列。
+
+#### （3）宏任务和微任务
+任务队列中的任务，又分为**宏任务**和**微任务**两种：
+
+##### ① 宏任务(macrotask)
+script（整体代码：你的全部JS代码，包括“同步代码”和“异步代码”）, setTimeout, setInterval, setImmediate, I/O, UI rendering
+
+宏任务中的任务优先级：setTimeout = setInterval > setImmediate
+
+##### ② 微任务(microtask)
+process.nextTick, Promises（这里指浏览器实现的原生 Promise，注意：Promise中的代码是同步的，then里面的才是异步的微任务）, Object.observe, MutationObserver
+
+微任务的任务优先级：process.nextTick > Promise
+
+**注意：**
+- 同层级的微任务是优先于宏任务执行的，即不论任务注册的先后顺序，总是执行完所有微任务后，再去执行宏任务，当然，注意这里说的是同层级的微任务和宏任务，因为还可能存在宏任务嵌套微任务的情况
+```javascript
+Promise.resolve().then(()=>{
+  console.log('Promise1')  
+  setTimeout(()=>{
+    console.log('setTimeout2')
+  },0)
+})
+
+setTimeout(()=>{
+  console.log('setTimeout1')
+  Promise.resolve().then(()=>{
+    console.log('Promise2')    
+  })
+},0)
+
+// 最后输出结果是Promise1，setTimeout1，Promise2，setTimeout2
+```
+
+- 一个事件循环可以有多个任务队列，队列之间可有不同的优先级，同一队列中的任务按先进先出的顺序执行，但是不保证多个任务队列中的任务优先级，具体实现可能会交叉执行。
+```javascript
+setTimeout(function(){
+    console.log(2);
+},0);
+ 
+new Promise(function(resolve){
+    console.log(3);
+    resolve();
+    console.log(4);
+}).then(function(){
+    console.log(5);
+});
+ 
+console.log(6);
+ 
+setTimeout(function(){
+    console.log(7);
+},0);
+ 
+console.log(8);
+// 输出结果是，3 4 6 8 5 2 7
+```
+
+#### （4）事件循环
+- 在浏览器环境中，首先在 macrotask 的队列（这个队列也被叫做 task queue）中取出第一个任务（即整体代码），执行整体代码中所有的同步任务，同时将异步任务注册到任务队列里面
+- 然后再取出 任务队列 中的所有微任务按照优先级执行（先清空process.nextTick队列，再清空promise.then队列）
+- 之后再取出 任务队列 中的下一个宏任务执行，**如果这个宏任务子级有微任务，执行完这个宏任务需要将其子层级下的微任务按照优先级执行**
+- 以此类推，直到任务队列中的任务都执行完毕
+
+上述的任务执行过程就是事件循环
+
+最后看一个复杂一些的例子：
+```javascript
+console.log('1');
+
+setTimeout(function() {
+    console.log('2');
+    process.nextTick(function() {
+        console.log('3');
+    })
+    new Promise(function(resolve) {
+        console.log('4');
+        resolve();
+    }).then(function() {
+        console.log('5')
+    })
+})
+
+new Promise(function(resolve) {
+    console.log('7');
+    resolve();
+}).then(function() {
+    console.log('8')
+})
+
+process.nextTick(function() {
+    console.log('6');
+})
+
+setTimeout(function() {
+    console.log('9');
+    
+    new Promise(function(resolve) {
+        console.log('11');
+        resolve();
+    }).then(function() {
+        console.log('12')
+    })
+    process.nextTick(function() {
+        console.log('10');
+    })
+})
+
+// 整段代码，共进行了三次事件循环，完整的输出为1，7，6，8，2，4，3，5，9，11，10，12
+```
+
+**第一轮事件循环**流程分析如下：
+
+- 整体script作为第一个宏任务进入主线程，遇到console.log，输出1。
+- 遇到setTimeout，其回调函数被分发到宏任务Event Queue中。我们暂且记为setTimeout1。
+- 遇到Promise，new Promise直接执行，输出7。then被分发到微任务Event Queue中。我们记为then1。
+- 遇到process.nextTick()，其回调函数被分发到微任务Event Queue中。我们记为process1。
+- 又遇到了setTimeout，其回调函数被分发到宏任务Event Queue中，我们记为setTimeout2。
+
+| 宏任务Event Queue | 微任务Event Queue |
+| ---- | ---- |
+| setTimeout1 | then1 |
+| setTimeout2 | process1 |
+
+- 上表是第一轮事件循环宏任务结束时各Event Queue的情况，此时已经输出了1和7。
+
+我们发现了process1和then1两个微任务。虽然Promise比nextTick先注册，但是nextTick比Promise优先级更高，所以：
+
+- 先执行process1,输出6。
+- 再执行then1，输出8。
+
+好了，第一轮事件循环正式结束，这一轮的结果是输出1，7，6，8。
+
+**第二轮事件循环**从setTimeout1宏任务开始：
+
+- 首先输出2。接下来遇到了process.nextTick()，同样将其分发到微任务Event Queue中，记为process2。
+- new Promise立即执行输出4，then也分发到微任务Event Queue中，记为then2
+
+| 宏任务Event Queue | 微任务Event Queue|
+| ---- | ---- |
+| setTimeout2 | process2 |
+| | then2 |
+
+- 执行process2，输出3
+- 再执行then2，输出5
+
+第二轮事件循环正式结束，这一轮的结果是输出2，4，3，5。
+
+**第三轮事件循环**从setTimeout2宏任务开始，过程和第二轮事件循环是类似的，这里就不展开了，第三轮输出9，11，10，12。
+
+最后的输出为1，7，6，8，2，4，3，5，9，11，10，12。(请注意，node环境下的事件监听依赖libuv与前端环境不完全相同，输出顺序可能会有误差)
+
+
+### 11.es6新特性
 #### （1）变量声明const 和 let
 作用：
 
@@ -240,7 +409,7 @@ var mySet = new Set([1, 2, 3, 4, 4]);
 - for in 取 key；for of 取 value
 - for of只能用于数组遍历，for in 还可以用于对象属性的遍历
 
-### 11.防抖和节流
+### 12.防抖和节流
 #### （1）防抖(debounce)
 对于短时间内连续触发的事件，在某个时间期限内，只执行最后一次触发的事件。
 
@@ -340,7 +509,7 @@ function throttle(fn, delay){
 - 搜索框input事件，例如要支持输入实时搜索可以使用**节流方案**（间隔一段时间就必须查询相关内容），或者实现输入间隔大于某个值（如500ms），就当做用户输入完成，然后开始搜索（**防抖方案**），具体使用哪种方案要看业务需求。
 - 表单提交，防止用户频繁点击，多次发起请求，这种情况一般使用**节流**
 
-### 12.回流和重绘
+### 13.回流和重绘
 #### （1）回流
 当我们对 DOM 的修改引发了 DOM 几何尺寸的变化（比如修改元素的宽、高或隐藏元素等）时，浏览器需要重新计算元素的几何属性（其他元素的几何属性和位置也会因此受到影响），然后再将计算的结果绘制出来。这个过程就是回流（也叫重排）。**浏览器窗口大小发生变化也会引起回流**
 
@@ -481,7 +650,7 @@ container.style.color = 'red'
 
 所以我们还是要养成良好的编码习惯，不能过多依赖于浏览器的优化帮忙，上面的代码即便浏览器可以帮忙处理，我们也最好不要那么写。
 
-### 13.关于性能优化的一些思路
+### 14.关于性能优化的一些思路
 #### （1）减少DOM操作
 js引擎和渲染引擎是互相独立的，每操作一次DOM（**修改DOM属性**和**访问DOM属性值**都算是操作DOM），就需要js引擎和渲染引擎进行一次“跨界交流”，这种“跨界交流”的开销是比较高的，如果多次操作DOM，就会产生比较明显的性能问题。
 
@@ -515,7 +684,7 @@ ul.appendChild(fragment);
 #### （3）回流和重绘的优化
 尽量减少或避免会产生回流与重绘的操作
 
-### 14.JS内存泄漏与垃圾回收机制
+### 15.JS内存泄漏与垃圾回收机制
 #### （1）什么是内存泄漏？
 不再用到的内存（变量），没有及时释放，就叫内存泄漏
 #### （2）JS垃圾回收机制
