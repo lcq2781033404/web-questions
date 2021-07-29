@@ -189,7 +189,7 @@ obj.h = obj;
 function deepClone(obj, hash = new WeakMap()) {
     //先把特殊情况全部过滤掉 null undefined date reg
     if (obj === null || obj === undefined) return obj;  // null 和 undefined 都不用处理
-    if (obj instanceof Date) return new Date(obj);
+    if (obj instanceof Date) return new Date(obj.getTime());
     if (obj instanceof RegExp) return new RegExp(obj);
     if (typeof obj !== 'object') return obj;  // 普通常量直接返回
     
