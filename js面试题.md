@@ -5,7 +5,7 @@
 
 **主要区别**
 
-- 声明变量时不同的内存分配：前者由于占据的空间大小固定且较小，会被存储在**栈**当中，也就是变量访问的位置；后者则存储在**堆**当中，变量访问的其实是一个指针，它指向存储对象的内存地址。
+- 声明变量时不同的内存分配：前者由于占据的空间大小固定且较小，变量名和值都会被存储在**栈**当中；后者变量名存储在**栈**中，值存储在**堆**中，变量访问的其实是一个指针，它指向存储对象的内存地址。
 - 也正是因为内存分配不同，在复制变量时也不一样。前者复制后2个变量是独立的，因为是把值拷贝了一份；后者则是复制了一个指针，2个变量指向的值是该指针所指向的内容，一旦一方修改，另一方也会受到影响。
 
 **注意**
@@ -63,6 +63,168 @@ o3 instanceof C; // true 因为 C.prototype 现在在 o3 的原型链上
 返回值：  Boolean，表示调用对象是否在另一个对象的原型链上。
 
 isPrototypeOf判断的是A对象是否存在于B对象的原型链之中
+
+### 3. 请描述一下深拷贝和浅拷贝怎么实现
+#### （1）浅拷贝
+浅拷贝只会克隆最外部的一层，至于更深层的对象，则依然是通过引用指向同一块堆内存。
+
+浅拷贝的常见实现方式
+##### ① 使用对象解构
+```javascript
+let obj2 = { ...obj }
+```
+
+##### ② 使用循环
+```javascript
+let obj2 = {};
+for(let i in obj) {
+    // for in 循环会遍历到对象的继承属性，我们只需要它的私有属性，所以可以加一个判断方法：hasOwnProperty 只拷贝对象私有属性
+    if(!obj.hasOwnProperty(i)) continue;
+    obj2[i] = obj[i];
+}
+```
+
+##### ③ Object.assign(target,source)
+这是ES6中新增的对象方法
+```javascript
+let obj2 = {};
+Object.assign(obj2, obj); // 将 obj 拷贝到 obj2
+```
+
+#### （2）深拷贝
+##### ① JSON.parse()和JSON.stringify
+```javascript
+let obj2 = JSON.parse(JSON.stringify(obj));
+
+obj2.schoole.name= 'susan';
+console.log(obj.school.name); // 'cherry'
+// obj 中属性值并没有改变,说明是深拷贝
+```
+这种方法是比较简单的深拷贝，在对象属性的类型比较简单的时候，我们可以采取这种方法快速深拷贝。这个方法有下面几个问题
+- 值为 **undefined** 的属性在转换后丢失；
+- 值为 **Symbol 类型**的属性在转换后丢失；
+- 值为 **RegExp 对象**的属性在转换后变成了空对象；
+- 值为**函数对象**的属性在转换后丢失；
+- 值为 **Date 对象**的属性在转换后变成了字符串；
+- **会抛弃对象的 constructor,所有的构造函数会指向 Object**；
+- 对象的**循环引用**会抛出错误。
+
+##### ② 自己手写
+实现思路：
+
+1. 遍历待拷贝的对象，判断是不是原始值，若是，使用浅拷贝的方式进行赋值。
+
+2. 若是引用值，将**特殊类型逐一进行过滤**，并且兼容引用值是数组的情况。
+
+3.待拷贝的对象里面的若是原始值，则浅拷贝即可实现，若还有引用值，则还需要重复进行上述一系列的判断（递归赋值）。
+
+这里需要注意的两个点就是：使用递归，**特殊类型特殊处理**
+
+```javascript
+let obj = {
+    a: '100',
+    b: undefined,
+    c: null,
+    d: Symbol(2),
+    e: /^\d+$/,
+    f: new Date,
+    g: true,
+    arr: [10,20,30],
+    school:{
+        name: 'cherry',
+    },
+    fn: function fn() {
+        console.log('fn');    
+    }
+}
+
+function deepClone(obj) {
+    // 先把特殊情况全部过滤掉 null undefined date reg
+    if (obj === null || obj === undefined) return obj;  // null 和 undefined 都不用处理
+    if (obj instanceof Date) return new Date(obj.getTime());
+    if (obj instanceof RegExp) return new RegExp(obj);
+    if (typeof obj !== 'object') return obj;  // 普通常量直接返回，函数也直接返回
+
+    // 不直接创建空对象的目的：克隆的结果和之前保持相同的所属类，
+    // 同时也兼容了数组的情况
+    let newObj = new obj.constructor;
+    for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {  // 不拷贝原型链上的属性
+            newObj[key] = deepClone(obj[key]);  // 递归赋值
+        }
+    }
+    return newObj;
+}
+let obj2 = deepClone(obj);
+console.log(obj2);
+```
+
+代码写到这里，我们就实现了一种比较简单的深拷贝，面试的时候如果你能写出上面的实现方法，应该算是及格啦！但是，这个方法还有如下的问题：
+- 为对象添加一个 Symbol 类型的**key**时，不会拷贝成功。解决方法：**使用 Object 提供的 getOwnPrepertySymbols()方法来枚举对象中所有 key 是 symbol 类型的属性**
+- 如果在我们拷贝的对象被循环引用，deepClone就会一直执行下去导致爆栈。解决方法：**使用 es6 的 WeakMap 来生成一个 hash 表，在赋值之前判断当前值是否已经存在，避免循环引用**
+
+```javascript
+let s1 = Symbol('s1');
+
+let obj = {
+    a: '100',
+    b: undefined,
+    c: null,
+    d: Symbol(2),
+    e: /^\d+$/,
+    f: new Date,
+    g: true,
+    arr: [10,20,30],
+    school:{
+        name:'cherry',
+        [s1]: 's1'
+    },
+    fn: function fn() {
+        console.log('fn');    
+    }
+}
+
+obj.h = obj;
+
+function deepClone(obj, hash = new WeakMap()) {
+    //先把特殊情况全部过滤掉 null undefined date reg
+    if (obj === null || obj === undefined) return obj;  // null 和 undefined 都不用处理
+    if (obj instanceof Date) return new Date(obj);
+    if (obj instanceof RegExp) return new RegExp(obj);
+    if (typeof obj !== 'object') return obj;  // 普通常量直接返回
+    
+    //  防止对象中的循环引用爆栈，把拷贝过的对象直接返还即可
+    if (hash.has(obj)) return hash.get(obj);
+
+    // 不直接创建空对象的目的：克隆的结果和之前保持相同的所属类
+    // 同时也兼容了数组的情况
+    let newObj = new obj.constructor;
+
+    hash.set(obj, newObj)  // 制作一个映射表
+    
+    //判断是否有 key 为 symbol 的属性
+    let symKeys = Object.getOwnPropertySymbols(obj);
+    if (symKeys.length) { 
+        symKeys.forEach(symKey => {
+            newObj[symKey] = deepClone(obj[symKey], hash);   
+        });
+    }
+
+    for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {  // 不拷贝原型链上的属性
+            newObj[key] = deepClone(obj[key], hash);  // 递归赋值
+        }
+    }
+    return newObj;
+}
+let obj2 = deepClone(obj);
+console.log(obj2);
+```
+
+##### ③ 使用lodash库
+lodash库里面有deepClone方法的实现，在生产中最好使用lodash
+
+
 
 ### 3.请描述一下 cookies sessionStorage和localstorage区别
 相同点：都存储在客户端
