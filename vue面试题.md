@@ -36,6 +36,7 @@ vue中的组件是可以**复用**的（也就说是可以共享的），但组�
 1. template
 2. render
 3. el
+
 其中，**根节点中el是必须有的**（没有el有$mount也是一样的效果），否则无法渲染，如果template、render和el都存在，按照render、template、el的优先级顺序来渲染
 
 ### 6.虚拟DOM和Diff算法介绍一下
