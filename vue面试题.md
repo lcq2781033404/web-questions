@@ -17,6 +17,9 @@ Vue 采用**观察者模式**，通过Object.defineProperty将对象的key转换
 
 所以Vue 3.0的时候，Vue是通过Proxy代理的方式监测属性变化的，解决了defineProperty无法追踪新增属性和删除属性的问题，而且Proxy 的代理是**针对整个对象的，而不是对象的某个属性**，因此不同于 Object.defineProperty 的必须遍历对象每个属性。
 
+### 2.上一个问题也可以这么问：vue中如何实现修改数据，视图自动更新的？（关键词：Dep，watcher，Object.defineProperty）
+vue中有一个Dep类，在页面 **初次渲染** 的时候，会把 watcher（监听器） 添加到Dep中。data中每有一个属性，都会创建一个 dep对象 与之对应，然后通过 Object.definePorperty 劫持data中的数据，并转换成 get 和 set 方法来追踪数据变化，**在 get 中收集依赖**，**在 set 中触发依赖**，这样就能实现数据变化，视图自动更新的效果
+
 ### 3.为什么Vue组件中的data是一个函数（而不是一个对象）
 vue中的组件是可以**复用**的（也就说是可以共享的），但组件中的**data数据是私有的**，为了防止data数据复用，将其定义为函数，**避免组件与组件之间共享一份data数据**。
 
