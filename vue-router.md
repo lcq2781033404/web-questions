@@ -51,7 +51,58 @@ const router = new VueRouter({
 })
 ```
 
-### 3. vue-router的导航守卫有哪些钩子函数？导航解析流程是什么？
+### 4. vue-router传参方式有哪些，有什么区别？
+#### （1）query方式传参
+通过query方式传参，参数会以?key=value的形式显示在url中，并且刷新页面参数还在
+```javascript
+this.$router.push({
+  name: 'user',
+  query: {
+    id: '123',
+    name: 'user'
+  }
+})
+```
+在跳转过去的页面通过 this.route.query 来获取id和name，但是为了解耦，一般使用props来传参
+```javascript
+// router 配置
+const router = new VueRouter({
+  routes: [
+    {
+      path: '/user',
+      name: 'user',
+      component: User,
+      props: route => ({ id: route.query.id, name: route.query.name })
+    }
+  ]
+})
+
+// User组件
+const User = {
+  props: ['id', 'name'],
+  template: '<div>User {{ id }} {{ name }}</div>'
+}
+```
+
+#### （2）params方式传参
+通过params方式传参，**可能会出现刷新页面参数丢失的情况**，这是因为在配置routes的时候，没有在path上配置占位符，就会导致参数没有显示到url上面
+```javascript
+const router = new VueRouter({
+  routes: [
+    {
+      path: '/user/:id', // 这里配置的要和你传递的参数名保持一致
+      name: 'user',
+      component: User,
+      props: true // props 被设置为 true，route.params 将会被设置为组件属性
+    }
+  ]
+})
+```
+经过上面的 /:id 的这种配置，跳转的时候会把id拼接到url的后面（/123），这样在刷新页面的时候参数也不会丢失。
+
+为了解耦，User组件依旧通过 props 获取路由参数
+
+### 5. vue-router的导航守卫有哪些钩子函数？导航解析流程是什么？
 路由导航守卫的钩子函数分为三个维度：全局的、单个路由独享的、组件级的。
 ### 全局守卫
 #### （1）全局前置守卫(router.beforeEach)
