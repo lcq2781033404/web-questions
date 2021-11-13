@@ -366,7 +366,7 @@ https://blog.csdn.net/William_bb/article/details/103169558?utm_medium=distribute
     - 解决方法就是：在new Promise的时候创建两个数组保存then和catch里面的回调函数，**在调用then方法的时候，如果状态还是pending，就把then的回调函数放入数组中缓存起来**。然后在执行resolce方法的时候，把数组里面的方法依次执行即可。
 - 如何模拟实现**then方法的链式操作**？
     - **时刻记住Promise规范**：then方法执行后默认返回的是一个**新的Promise对象**，而不是原来的Promise对象
-    - 根据上述Promise规范，其实then方法的链式操作就是**递归实例化Promise对象**
+    - 根据上述Promise规范，其实then方法的链式操作就是**递归实例化Promise对象**，至于参数在多个then链之间的传递则是：**上一个then里面回调方法的返回值作为下一个then里面回调方法的参数**
 
 ### 11.JS事件循环、任务队列、宏任务、微任务？
 #### （1）同步与异步简介
