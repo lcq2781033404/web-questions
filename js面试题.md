@@ -358,6 +358,16 @@ https://blog.csdn.net/William_bb/article/details/103169558?utm_medium=distribute
 
 上面这个文章讲的比较透彻
 
+主要注意的几个点就是：
+- new Promise 里面的代码是**同步**的，Promise.then.catch里面的方法才是异步的，所以在手写promise的时候，自定义的promise的构造函数需要**立即执行传入promise的方法**
+- new Promise 的then和catch回调都是**微任务**，我们使用setTimeout模拟实现的，但是setTimeout是**宏任务**，所以，我们的**模拟实现无法百分百还原**，这个要注意。
+- 如何实现在new promise里面**异步调用resolve或reject**？
+    - 异步调用resolve可能**then方法会在调用resolve之前执行**，这时候由于还没调用resolve，所以状态还是pending，此时调用then自然不会触发里面的回调函数。
+    - 解决方法就是：在new Promise的时候创建两个数组保存then和catch里面的回调函数，**在调用then方法的时候，如果状态还是pending，就把then的回调函数放入数组中缓存起来**。然后在执行resolce方法的时候，把数组里面的方法依次执行即可。
+- 如何模拟实现**then方法的链式操作**？
+    - **时刻记住Promise规范**：then方法执行后默认返回的是一个**新的Promise对象**，而不是原来的Promise对象
+    - 根据上述Promise规范，其实then方法的链式操作就是**递归实例化Promise对象**
+
 ### 11.JS事件循环、任务队列、宏任务、微任务？
 #### （1）同步与异步简介
 我们知道，Javascript语言的执行环境是**单线程**（single thread）的。
