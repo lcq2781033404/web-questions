@@ -387,3 +387,27 @@ function initUse (Vue) {
 1. 首先vue.use不会重复注册插件，
 2. 使用vue.use后，会优先找到插件对象中的install方法并执行，如果没有找到install方法，则会执行插件本身。（这里的插件就是一个方法或者对象）
 3. 在插件的install方法（或者插件本身）中，**第一个参数是vue实例**
+
+### 16.vue中的this指向问题
+#### （1）问题1：为什么在vue组件里面的钩子函数的this都是指向的vue实例？
+vue内部是通过**apply**方法把this的指向修改成了vue实例
+#### （2）问题2：vue组件data里面的this指向是什么？
+vue组件里面的data如果写成对象，指向window，如果写成函数，指向vue实例。
+
+追问：如何解释如下代码的打印结果?
+```
+ data() {
+    return {
+      id: '123',
+      str: 'hello ' + this.id,
+      test: this
+    }
+  },
+  created() {
+    console.log(this.test) // 打印vue实例对象
+    console.log(this.str) // hello undefined
+  },
+```
+**因为data函数是在vue实例构建的时候执行并给data里面的变量赋值的，此时this指向window，所以打印this.str的时候是hello undefined**
+
+参考：https://blog.csdn.net/qq_41889956/article/details/99195689
